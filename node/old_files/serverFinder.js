@@ -25,7 +25,7 @@ requestIp(CONFIG.serviceName);
     serviceName: serviceName
   }
 
-  fetch(CONFIG.fetchUrl, {
+  fetch(CONFIG.GASScriptUrl, {
     method: 'POST',
     body: JSON.stringify(data),
     headers: {'Content-type': 'application/json; charset=UTF-8'}
