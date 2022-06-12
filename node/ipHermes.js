@@ -1,14 +1,22 @@
 'use strict';
 
+
 class IpHermes {
   constructor() {
+    // Here Nodejs version is checked. The script uses 'fetch()' which is not supported before version 18.
+    const ver = Number(process.version.slice(1, 3));
+    if(ver < 18) {
+      throw Error('Node version must be 18 or higher. Please check the docs');
+    }
 
-    // TODO insert check for node version for the fetch function
 
     this.CONFIG = require('./config');
     this.http = require('http');
 
-    this.services = {};
+    this.services = this.CONFIG.SERVICES_TO_MONITOR.reduce( (obj, currentItem) => {
+      obj[currentItem] = '';
+      return obj;
+    }, {});
 
     this.monitoringTimerId;
     this.transmittingTimerId;
@@ -20,15 +28,15 @@ class IpHermes {
    * 
    * @param {integer} interval - The interval in ms for IP broadcast to the GAS script
    */
-  startTrasmitting(interval = this.CONFIG.broadcastInterval) {
+  startTrasmitting(interval = this.CONFIG.BROADCAST_INTERVAL) {
     // To avoid spam detection problems with GAS, the interval is hardcoded not to be smaller than 1 minute.
     if(interval < 60000) {
       console.log('Interval too small, forcing 60 seconds');
-      interval = 60000
+      interval = 60000;
     }
     console.log(`Starting trasmitting ip every ${interval} ms...`)
-    this.transmittingTimerId = setInterval(sendIpToGAS, interval);
-    sendIpToGAS();
+    this.transmittingTimerId = setInterval(this.sendIpToGAS.bind(this), interval);
+    this.sendIpToGAS();
   }
 
   /**
@@ -41,19 +49,37 @@ class IpHermes {
 
 
 
-  startMonitoring() {
-    
-    // TODO implement this. There should be a single setinterval. At every interval every service is checked and ip updated
+  /**
+   * Starts updating the ip for the registered services
+   * polling the GAS url provided in CONFIG at regular intervals
+   * 
+   * @param {integer} interval - The interval in ms 
+   */
+  startMonitoring(interval = this.CONFIG.SERVICES_UPDATE_INTERVAL) {
+    // To avoid spam detection problems with GAS, the interval is hardcoded not to be smaller than 1 minute.
+    if(interval < 60000) {
+      console.log('Interval too small, forcing 60 seconds');
+      interval = 60000;
+    }
+    console.log(`Starting updating services every ${interval} ms...`)
+    this.monitoringTimerId = setInterval(this.updateEveryService, interval);
+    this.updateEveryService();
   }
 
+  /**
+   * Stops monitoring the services
+   */
+   stopTransmitting() {
+    clearInterval(this.monitoringTimerId);
+    console.log('Services monitoring stopped.');
+  }
 
-
-
-
-
-
-
-
+  updateEveryService() {
+    // console.log('this inside updateEveryService(): ', this);
+    for(const service in this.services) {
+      this.requestIp(service);
+    }
+  }
 
 
 
@@ -83,13 +109,15 @@ class IpHermes {
    * @param {string} serviceName - The name of the service for which an IP is needed
    */
   requestIp(serviceName) {
+    console.log(`Requesting IP for service ${serviceName}`)
     const data = {
-      authCode: CONFIG.AUTH_CODE,
+      authCode: this.CONFIG.AUTH_CODE,
       requestType: 'REQUEST_IP',
       serviceName: serviceName
     }
 
-    fetch(CONFIG.GASScriptUrl, {
+
+    fetch(this.CONFIG.GAS_SCRIPT_URL, {
       method: 'POST',
       body: JSON.stringify(data),
       headers: {'Content-type': 'application/json; charset=UTF-8'}
@@ -101,21 +129,16 @@ class IpHermes {
     .then(result => {
       console.log(`Retrieved ip ${result.value} for service ${serviceName}`);
       this.services[serviceName] = result.value;
+      console.log(this.services);
     })
     .catch(err => console.log(err));
   }
 
-
-
-
-
-
-
       
   sendIpToGAS() {
     console.log('Sending IP to GAS...');
-    getMyIp()
-    .then( ip => dispatchIp(ip))
+    this.getMyIp()
+    .then( ip => this.dispatchIp(ip))
     .catch(err => console.log(err));
   }
 
@@ -132,7 +155,7 @@ class IpHermes {
   // ... so here's a promisified version:
   promisifiedIpRequest() {
     return new Promise((resolve, reject) => {
-      http.get(CONFIG.PUBLIC_IP_SERVICE_PARAMETERS, (resp) => {
+      this.http.get(this.CONFIG.PUBLIC_IP_SERVICE_PARAMETERS, (resp) => {
         resp.on('data', (ip) => {
           resolve(ip.toString());
         });
@@ -150,7 +173,7 @@ class IpHermes {
    * Simple wrapper to allow for await
    */
   async getMyIp() {
-    const ip = await promisifiedIpRequest();
+    const ip = await this.promisifiedIpRequest();
     return ip;
   }
     
@@ -160,13 +183,13 @@ class IpHermes {
    */
   dispatchIp(ip) {
     const data = {
-      authCode: CONFIG.AUTH_CODE,
+      authCode: this.CONFIG.AUTH_CODE,
       requestType: 'UPDATE_IP',
-      serviceName: CONFIG.SERVER_SERVICE_NAME,
+      serviceName: this.CONFIG.SERVER_SERVICE_NAME,
       ip: ip
     }
 
-    fetch(CONFIG.GAS_SCRIPT_URL, {
+    fetch(this.CONFIG.GAS_SCRIPT_URL, {
       method: 'POST',
       body: JSON.stringify(data),
       headers: {'Content-type': 'application/json; charset=UTF-8'}
@@ -190,3 +213,4 @@ class IpHermes {
 
 
 
+module.exports.IpHermes = IpHermes;
