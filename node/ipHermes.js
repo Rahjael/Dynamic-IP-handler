@@ -22,6 +22,9 @@ class IpHermes {
     this.transmittingTimerId;
   }
 
+
+
+
   /**
    * Starts trasmitting the public ip of the machine
    * to the GAS url provided in CONFIG at regular intervals
@@ -196,7 +199,7 @@ class IpHermes {
     })
     .then(response => {
       console.log('done');
-      return response.json();  
+      return response.json();
     })
     .then(json => {
       console.log('request result: ', json);
@@ -204,9 +207,6 @@ class IpHermes {
     .catch(err => console.log(err));
   }
 }
-
-
-
 
 
 
