@@ -14,7 +14,7 @@ This is an alpha version of the readme just to give an idea of what this tool is
 
 
 
-###The tool is composed of 3 parts meant to work simultaneously.
+## The tool is composed of 3 parts meant to work simultaneously.
 
 **Part 1 - The Google Apps Script part (GAS):**
 This runs as a Google Script hosted on a user's Google Drive. At the time of writing the service is free and runs the JS V8 engine. It provides and extensive API that allows users to use JS scripts to interact with the Google services in many ways (https://developers.google.com/apps-script/reference).
